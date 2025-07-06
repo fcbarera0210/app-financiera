@@ -2,21 +2,25 @@
   "expo": {
     "name": "app-financiera",
     "slug": "app-financiera",
-    "version": "1.0.0",
+    "version": "0.1.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "appfinanciera",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0F4F7"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fcabrera0210.appfinanciera"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F0F4F7"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.fcabrera0210.appfinanciera"
     },
     "web": {
       "bundler": "metro",
@@ -26,17 +30,25 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-build-properties",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "android": {
+            "googleServicesFile": "./google-services.json"
+          },
+          "ios": {
+            "googleServicesFile": "./GoogleService-Info.plist"
+          }
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2cb7f96e-74b5-4285-b40d-702258f0c985"
+      }
     }
   }
 }
