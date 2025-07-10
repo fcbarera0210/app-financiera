@@ -1,10 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext';
 
-// Helper function para formatear a CLP
 const formatCurrency = (amount: number): string => {
-    // Maneja el caso de que el monto no sea un número válido
     if (isNaN(amount)) {
         amount = 0;
     }
@@ -21,9 +20,11 @@ interface SaldoPanelProps {
 }
 
 const SaldoPanel: React.FC<SaldoPanelProps> = ({ balance, monthlyIncome, monthlyExpenses }) => {
+    const { colors } = useTheme(); // Usamos el hook para obtener los colores
+
     return (
         <LinearGradient
-            // Colores del degradado
+            // Los colores del degradado se mantienen para un look consistente
             colors={['#4A90E2', '#357ABD']}
             style={styles.container}
         >
@@ -97,10 +98,10 @@ const styles = StyleSheet.create({
         marginTop: 5,
     },
     income: {
-        color: '#90ee90', // Verde claro
+        color: '#90ee90', // Verde claro se ve bien en ambos modos
     },
     expense: {
-        color: '#f08080', // Coral claro
+        color: '#f08080', // Coral claro se ve bien en ambos modos
     },
 });
 

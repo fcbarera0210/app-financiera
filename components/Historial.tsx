@@ -7,9 +7,9 @@ import {
     View
 } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 import { Transaction } from '../types';
 
-// Helper function para formatear a CLP
 const formatCurrency = (amount: number): string => {
     if (isNaN(amount)) amount = 0;
     return new Intl.NumberFormat('es-CL', {
@@ -19,15 +19,15 @@ const formatCurrency = (amount: number): string => {
 };
 
 // --- Iconos SVG para los botones ---
-const EditIcon = () => (
-    <Svg height="20" width="20" viewBox="0 0 20 20" fill="#6b7280">
+const EditIcon = ({ color }: { color: string }) => (
+    <Svg height="20" width="20" viewBox="0 0 20 20" fill={color}>
         <Path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
         <Path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
     </Svg>
 );
 
-const DeleteIcon = () => (
-    <Svg height="20" width="20" viewBox="0 0 20 20" fill="#ef4444">
+const DeleteIcon = ({ color }: { color: string }) => (
+    <Svg height="20" width="20" viewBox="0 0 20 20" fill={color}>
         <Path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
     </Svg>
 );
@@ -43,49 +43,55 @@ interface HistorialProps {
 }
 
 const Historial: React.FC<HistorialProps> = ({ transactions, categories, onDelete, onEdit, onFilter, activeFilter }) => {
+    const { colors } = useTheme(); // Usamos el hook para obtener los colores
     
     const renderItem = ({ item }: { item: Transaction }) => (
-        <View style={[styles.itemContainer, item.type === 'ingreso' ? styles.incomeBg : styles.expenseBg]}>
+        <View style={[styles.itemContainer, { backgroundColor: item.type === 'ingreso' ? colors.notification + '15' : colors.destructive + '15' }]}>
             <View style={styles.itemInfo}>
-                <Text style={styles.itemDescription}>{item.description}</Text>
-                {item.category && (
-                    <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryText}>{item.category}</Text>
-                    </View>
-                )}
+                <Text style={[styles.itemDescription, { color: colors.text }]}>{item.description}</Text>
+                <View style={styles.metaContainer}>
+                    {item.category && (
+                        <View style={[styles.categoryBadge, { backgroundColor: colors.background }]}>
+                            <Text style={[styles.categoryText, { color: colors.textSecondary }]}>{item.category}</Text>
+                        </View>
+                    )}
+                    <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+                        {new Date(item.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </Text>
+                </View>
             </View>
             <View style={styles.itemActions}>
                 <Text style={item.type === 'ingreso' ? styles.incomeAmount : styles.expenseAmount}>
                     {item.type === 'ingreso' ? '+' : '-'}{formatCurrency(item.amount)}
                 </Text>
                 <TouchableOpacity onPress={() => onEdit(item)} style={styles.actionButton}>
-                    <EditIcon />
+                    <EditIcon color={colors.textSecondary} />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => onDelete(item.id)} style={styles.actionButton}>
-                    <DeleteIcon />
+                    <DeleteIcon color={colors.destructive} />
                 </TouchableOpacity>
             </View>
         </View>
     );
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Historial de Movimientos</Text>
+        <View style={[styles.container, { backgroundColor: colors.card }]}>
+            <Text style={[styles.title, { color: colors.text }]}>Historial de Movimientos</Text>
             
             <View style={styles.filterContainer}>
                 <TouchableOpacity 
-                    style={[styles.filterButton, activeFilter === 'todos' && styles.filterActive]}
+                    style={[styles.filterButton, { backgroundColor: colors.background }, activeFilter === 'todos' && { backgroundColor: colors.primary }]}
                     onPress={() => onFilter('todos')}
                 >
-                    <Text style={[styles.filterText, activeFilter === 'todos' && styles.filterActiveText]}>Todos</Text>
+                    <Text style={[styles.filterText, { color: colors.textSecondary }, activeFilter === 'todos' && styles.filterActiveText]}>Todos</Text>
                 </TouchableOpacity>
                 {categories.map(cat => (
                     <TouchableOpacity 
                         key={cat}
-                        style={[styles.filterButton, activeFilter === cat && styles.filterActive]}
+                        style={[styles.filterButton, { backgroundColor: colors.background }, activeFilter === cat && { backgroundColor: colors.primary }]}
                         onPress={() => onFilter(cat)}
                     >
-                        <Text style={[styles.filterText, activeFilter === cat && styles.filterActiveText]}>{cat}</Text>
+                        <Text style={[styles.filterText, { color: colors.textSecondary }, activeFilter === cat && styles.filterActiveText]}>{cat}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -94,8 +100,9 @@ const Historial: React.FC<HistorialProps> = ({ transactions, categories, onDelet
                 data={transactions}
                 renderItem={renderItem}
                 keyExtractor={item => item.id}
-                ListEmptyComponent={<Text style={styles.emptyText}>No hay movimientos para mostrar.</Text>}
+                ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSecondary }]}>No hay movimientos para mostrar.</Text>}
                 contentContainerStyle={{ paddingBottom: 20 }}
+                scrollEnabled={false}
             />
         </View>
     );
@@ -105,7 +112,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
-        backgroundColor: 'white',
         borderRadius: 20,
         marginTop: 10,
     },
@@ -114,7 +120,6 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 20,
-        color: '#1e293b',
     },
     filterContainer: {
         flexDirection: 'row',
@@ -126,19 +131,14 @@ const styles = StyleSheet.create({
     filterButton: {
         paddingVertical: 6,
         paddingHorizontal: 14,
-        backgroundColor: '#e2e8f0',
         borderRadius: 16,
-    },
-    filterActive: {
-        backgroundColor: '#3b82f6',
-    },
-    filterText: {
-        fontSize: 14,
-        color: '#475569',
-        fontWeight: '500',
     },
     filterActiveText: {
         color: 'white',
+    },
+    filterText: {
+        fontSize: 14,
+        fontWeight: '500',
     },
     itemContainer: {
         flexDirection: 'row',
@@ -148,31 +148,31 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginBottom: 10,
     },
-    incomeBg: {
-        backgroundColor: 'rgba(22, 163, 74, 0.08)',
-    },
-    expenseBg: {
-        backgroundColor: 'rgba(220, 38, 38, 0.08)',
-    },
     itemInfo: {
         flex: 1,
     },
     itemDescription: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#1e293b',
+        marginBottom: 5,
+    },
+    metaContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     categoryBadge: {
-        backgroundColor: '#f1f5f9',
         borderRadius: 10,
         paddingVertical: 3,
         paddingHorizontal: 8,
         alignSelf: 'flex-start',
-        marginTop: 5,
     },
     categoryText: {
         fontSize: 12,
-        color: '#64748b',
+        fontWeight: '500',
+    },
+    dateText: {
+        fontSize: 12,
         fontWeight: '500',
     },
     itemActions: {
@@ -200,7 +200,6 @@ const styles = StyleSheet.create({
     emptyText: {
         textAlign: 'center',
         marginTop: 30,
-        color: '#64748b',
         fontSize: 16,
     },
 });

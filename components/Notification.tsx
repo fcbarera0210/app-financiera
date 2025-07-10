@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 
 // Iconos para la notificación
 const SuccessIcon = () => (
@@ -22,37 +23,41 @@ interface NotificationProps {
 }
 
 const Notification: React.FC<NotificationProps> = ({ message, type, visible, onHide }) => {
-  const slideAnim = useRef(new Animated.Value(-100)).current; // Inicia fuera de la pantalla
+  const { colors } = useTheme(); // Usamos el hook para obtener los colores
+  const slideAnim = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     if (visible) {
-      // Animación de entrada
       Animated.timing(slideAnim, {
-        toValue: 50, // Posición final en la pantalla
+        toValue: 50,
         duration: 300,
         useNativeDriver: true,
       }).start();
 
-      // Ocultar después de 3 segundos
       const timer = setTimeout(() => {
-        // Animación de salida
         Animated.timing(slideAnim, {
           toValue: -100,
           duration: 300,
           useNativeDriver: true,
         }).start(() => {
-          onHide(); // Llama a onHide cuando la animación termina
+          onHide();
         });
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, onHide, slideAnim]);
 
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }, type === 'success' ? styles.successBg : styles.errorBg]}>
+    <Animated.View style={[
+        styles.container, 
+        { 
+            transform: [{ translateY: slideAnim }],
+            backgroundColor: type === 'success' ? colors.notification : colors.destructive
+        }
+    ]}>
       {type === 'success' ? <SuccessIcon /> : <ErrorIcon />}
       <Text style={styles.text}>{message}</Text>
     </Animated.View>
@@ -75,12 +80,6 @@ const styles = StyleSheet.create({
         zIndex: 1000,
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    successBg: {
-        backgroundColor: '#22c55e', // Verde
-    },
-    errorBg: {
-        backgroundColor: '#ef4444', // Rojo
     },
     text: {
         color: 'white',

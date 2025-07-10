@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 
 interface ModalSeleccionarCategoriaProps {
   visible: boolean;
@@ -17,7 +18,8 @@ interface ModalSeleccionarCategoriaProps {
 }
 
 const ModalSeleccionarCategoria: React.FC<ModalSeleccionarCategoriaProps> = ({ visible, categories, onClose, onSelect }) => {
-  
+  const { colors } = useTheme(); // Usamos el hook para obtener los colores
+
   const handleSelect = (category: string) => {
     onSelect(category);
     onClose();
@@ -30,22 +32,22 @@ const ModalSeleccionarCategoria: React.FC<ModalSeleccionarCategoriaProps> = ({ v
       visible={visible}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.header}>
-            <Text style={styles.modalTitle}>Selecciona una Categoría</Text>
+      <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Selecciona una Categoría</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>Cerrar</Text>
+                <Text style={[styles.closeButtonText, { color: colors.primary }]}>Cerrar</Text>
             </TouchableOpacity>
         </View>
         <FlatList
           data={categories}
           keyExtractor={(item) => item}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.itemContainer} onPress={() => handleSelect(item)}>
-              <Text style={styles.itemText}>{item}</Text>
+            <TouchableOpacity style={[styles.itemContainer, { borderBottomColor: colors.border }]} onPress={() => handleSelect(item)}>
+              <Text style={[styles.itemText, { color: colors.text }]}>{item}</Text>
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No hay categorías. Añade una nueva.</Text>}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSecondary }]}>No hay categorías. Añade una nueva.</Text>}
         />
       </SafeAreaView>
     </Modal>
@@ -55,13 +57,11 @@ const ModalSeleccionarCategoria: React.FC<ModalSeleccionarCategoriaProps> = ({ v
 const styles = StyleSheet.create({
     modalContainer: {
         flex: 1,
-        backgroundColor: '#f0f4f7',
     },
     header: {
         paddingVertical: 15,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -69,31 +69,26 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        color: '#1e293b',
     },
     closeButton: {
         padding: 8,
     },
     closeButtonText: {
         fontSize: 16,
-        color: '#3b82f6',
         fontWeight: '600',
     },
     itemContainer: {
         paddingVertical: 20,
         paddingHorizontal: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
     },
     itemText: {
         fontSize: 18,
-        color: '#334155',
     },
     emptyText: {
         textAlign: 'center',
         marginTop: 50,
         fontSize: 16,
-        color: '#64748b',
     }
 });
 

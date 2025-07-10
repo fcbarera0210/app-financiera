@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 
 interface ModalConfirmacionProps {
   visible: boolean;
@@ -16,7 +17,7 @@ interface ModalConfirmacionProps {
   onConfirm: () => void;
   confirmText?: string;
   cancelText?: string;
-  isConfirming?: boolean; // Para mostrar un estado de carga
+  isConfirming?: boolean;
 }
 
 const ModalConfirmacion: React.FC<ModalConfirmacionProps> = ({
@@ -29,6 +30,8 @@ const ModalConfirmacion: React.FC<ModalConfirmacionProps> = ({
   cancelText = 'Cancelar',
   isConfirming = false,
 }) => {
+  const { colors } = useTheme(); // Usamos el hook para obtener los colores
+
   return (
     <Modal
       animationType="fade"
@@ -37,19 +40,19 @@ const ModalConfirmacion: React.FC<ModalConfirmacionProps> = ({
       onRequestClose={onCancel}
     >
       <View style={styles.centeredView}>
-        <View style={styles.modalView}>
-          <Text style={styles.modalTitle}>{title}</Text>
-          <Text style={styles.modalText}>{message}</Text>
+        <View style={[styles.modalView, { backgroundColor: colors.card }]}>
+          <Text style={[styles.modalTitle, { color: colors.text }]}>{title}</Text>
+          <Text style={[styles.modalText, { color: colors.textSecondary }]}>{message}</Text>
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.cancelButton, { backgroundColor: colors.background }]}
               onPress={onCancel}
               disabled={isConfirming}
             >
-              <Text style={styles.cancelButtonText}>{cancelText}</Text>
+              <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>{cancelText}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.confirmButton, isConfirming && styles.buttonDisabled]}
+              style={[styles.button, styles.confirmButton, { backgroundColor: colors.destructive }, isConfirming && styles.buttonDisabled]}
               onPress={onConfirm}
               disabled={isConfirming}
             >
@@ -75,7 +78,6 @@ const styles = StyleSheet.create({
   },
   modalView: {
     width: '90%',
-    backgroundColor: 'white',
     borderRadius: 20,
     padding: 25,
     alignItems: 'center',
@@ -89,12 +91,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#1e293b',
     textAlign: 'center',
   },
   modalText: {
     fontSize: 16,
-    color: '#475569',
     textAlign: 'center',
     marginBottom: 30,
     lineHeight: 24,
@@ -111,16 +111,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#e2e8f0',
     marginRight: 10,
   },
   cancelButtonText: {
-    color: '#475569',
     fontWeight: 'bold',
     fontSize: 16,
   },
   confirmButton: {
-    backgroundColor: '#ef4444', // Rojo para acciones destructivas
     marginLeft: 10,
   },
   confirmButtonText: {
@@ -129,7 +126,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   buttonDisabled: {
-    backgroundColor: '#fca5a5',
+    opacity: 0.5,
   },
 });
 

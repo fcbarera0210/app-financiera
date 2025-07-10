@@ -1,12 +1,15 @@
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Platform,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 import { NewTransaction } from '../types';
 import ModalAgregarCategoria from './ModalAgregarCategoria';
 import ModalSeleccionarCategoria from './ModalSeleccionarCategoria';
@@ -19,10 +22,13 @@ interface FormularioTransaccionProps {
 }
 
 const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTransaction, onAddNewCategory, categories, showNotification }) => {
+    const { colors } = useTheme(); // Usamos el hook para obtener los colores
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [type, setType] = useState<'ingreso' | 'gasto'>('gasto'); // <-- Gasto por defecto
+    const [type, setType] = useState<'ingreso' | 'gasto'>('gasto');
     const [category, setCategory] = useState('');
+    const [date, setDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAddCategoryModalVisible, setAddCategoryModalVisible] = useState(false);
     const [isSelectCategoryModalVisible, setSelectCategoryModalVisible] = useState(false);
@@ -45,59 +51,85 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
             description, 
             amount: numericAmount, 
             type, 
-            category: type === 'gasto' ? category.trim() : null 
+            category: type === 'gasto' ? category.trim() : null,
+            date: date.toISOString()
         });
         setIsSubmitting(false);
 
         setDescription('');
         setAmount('');
         setCategory('');
-        setType('gasto'); // <-- Resetear a gasto
+        setType('gasto');
+        setDate(new Date());
     };
 
     const handleSaveNewCategory = (newCategory: string) => {
         onAddNewCategory(newCategory);
         setCategory(newCategory);
     };
+    
+    const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+        setShowDatePicker(Platform.OS === 'ios');
+        if (selectedDate) {
+            setDate(selectedDate);
+        }
+    };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Añadir Movimiento</Text>
+        <View style={[styles.container, { backgroundColor: colors.card }]}>
+            <Text style={[styles.title, { color: colors.text }]}>Añadir Movimiento</Text>
             
-            <View style={styles.switchContainer}>
+            <View style={[styles.switchContainer, { backgroundColor: colors.background }]}>
                 <TouchableOpacity 
                     style={[styles.switchButton, type === 'gasto' ? styles.switchActiveGasto : styles.switchInactive]}
                     onPress={() => setType('gasto')}
                 >
-                    <Text style={[styles.switchText, type === 'gasto' && styles.switchActiveText]}>Gasto</Text>
+                    <Text style={[styles.switchText, { color: colors.textSecondary }, type === 'gasto' && styles.switchActiveText]}>Gasto</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={[styles.switchButton, type === 'ingreso' ? styles.switchActiveIngreso : styles.switchInactive]}
                     onPress={() => setType('ingreso')}
                 >
-                    <Text style={[styles.switchText, type === 'ingreso' && styles.switchActiveText]}>Ingreso</Text>
+                    <Text style={[styles.switchText, { color: colors.textSecondary }, type === 'ingreso' && styles.switchActiveText]}>Ingreso</Text>
                 </TouchableOpacity>
             </View>
 
             <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Descripción (ej. Supermercado)"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
             />
-            <TextInput
-                style={styles.input}
+             <TextInput
+                style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="Monto"
-                placeholderTextColor="#999"
+                placeholderTextColor={colors.textSecondary}
                 keyboardType="numeric"
             />
+
+            <TouchableOpacity style={[styles.input, styles.pickerInput, { backgroundColor: colors.background, borderColor: colors.border }]} onPress={() => setShowDatePicker(true)}>
+                <Text style={[styles.pickerText, { color: colors.text }]}>
+                    {date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+                <DateTimePicker
+                    testID="dateTimePicker"
+                    value={date}
+                    mode="date"
+                    display="default"
+                    onChange={onDateChange}
+                />
+            )}
+            
             {type === 'gasto' && (
                 <View style={styles.categoryRow}>
-                    <TouchableOpacity style={[styles.input, styles.pickerInput]} onPress={() => setSelectCategoryModalVisible(true)}>
-                        <Text style={[styles.pickerText, !category && styles.pickerPlaceholder]}>
+                    <TouchableOpacity style={[styles.input, styles.pickerInput, { backgroundColor: colors.background, borderColor: colors.border }]} onPress={() => setSelectCategoryModalVisible(true)}>
+                        <Text style={[styles.pickerText, !category && { color: colors.textSecondary }]}>
                             {category || 'Selecciona una categoría'}
                         </Text>
                     </TouchableOpacity>
@@ -106,12 +138,8 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
                     </TouchableOpacity>
                 </View>
             )}
-            <TouchableOpacity style={[styles.button, isSubmitting && styles.buttonDisabled]} onPress={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? (
-                    <ActivityIndicator color="white" />
-                ) : (
-                    <Text style={styles.buttonText}>Añadir</Text>
-                )}
+            <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }, isSubmitting && styles.buttonDisabled]} onPress={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Añadir</Text>}
             </TouchableOpacity>
 
             <ModalSeleccionarCategoria 
@@ -120,7 +148,6 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
                 onClose={() => setSelectCategoryModalVisible(false)}
                 onSelect={setCategory}
             />
-
             <ModalAgregarCategoria 
                 visible={isAddCategoryModalVisible}
                 onClose={() => setAddCategoryModalVisible(false)}
@@ -133,7 +160,6 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
 const styles = StyleSheet.create({
     container: {
         padding: 20,
-        backgroundColor: 'white',
         borderRadius: 20,
         marginBottom: 25,
         shadowColor: "#000",
@@ -147,13 +173,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         marginBottom: 20,
-        color: '#1e293b',
     },
     switchContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         marginBottom: 20,
-        backgroundColor: '#e2e8f0',
         borderRadius: 12,
         overflow: 'hidden',
     },
@@ -163,10 +187,10 @@ const styles = StyleSheet.create({
         borderRadius: 10,
     },
     switchActiveIngreso: {
-        backgroundColor: '#16a34a', // Verde
+        backgroundColor: '#16a34a',
     },
     switchActiveGasto: {
-        backgroundColor: '#ef4444', // Rojo
+        backgroundColor: '#ef4444',
     },
     switchInactive: {
         backgroundColor: 'transparent',
@@ -175,21 +199,17 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 16,
         fontWeight: '600',
-        color: '#475569',
     },
     switchActiveText: {
         color: 'white',
     },
     input: {
         height: 50,
-        borderColor: '#cbd5e1',
         borderWidth: 1,
         borderRadius: 12,
         paddingHorizontal: 15,
         marginBottom: 16,
-        backgroundColor: '#f8fafc',
         fontSize: 16,
-        color: '#1e293b',
     },
     pickerInput: {
         flex: 1,
@@ -197,11 +217,8 @@ const styles = StyleSheet.create({
     },
     pickerText: {
         fontSize: 16,
-        color: '#1e293b',
     },
-    pickerPlaceholder: {
-        color: '#999',
-    },
+    pickerPlaceholder: {},
     categoryRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -222,14 +239,13 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     button: {
-        backgroundColor: '#3b82f6',
         paddingVertical: 15,
         borderRadius: 12,
         alignItems: 'center',
         marginTop: 10,
     },
     buttonDisabled: {
-        backgroundColor: '#93c5fd',
+        opacity: 0.5,
     },
     buttonText: {
         color: 'white',

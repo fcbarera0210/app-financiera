@@ -9,6 +9,7 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
 
 interface ModalAgregarCategoriaProps {
   visible: boolean;
@@ -17,13 +18,14 @@ interface ModalAgregarCategoriaProps {
 }
 
 const ModalAgregarCategoria: React.FC<ModalAgregarCategoriaProps> = ({ visible, onClose, onSave }) => {
+  const { colors } = useTheme(); // Usamos el hook para obtener los colores
   const [newCategory, setNewCategory] = useState('');
 
   const handleSave = () => {
     if (newCategory.trim()) {
       onSave(newCategory.trim());
-      setNewCategory(''); // Limpiar el input
-      onClose(); // Cerrar el modal
+      setNewCategory('');
+      onClose();
     }
   };
 
@@ -36,21 +38,21 @@ const ModalAgregarCategoria: React.FC<ModalAgregarCategoriaProps> = ({ visible, 
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <Text style={styles.modalTitle}>Nueva Categoría</Text>
+          <View style={[styles.modalView, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Nueva Categoría</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]}
               value={newCategory}
               onChangeText={setNewCategory}
               placeholder="Nombre de la categoría"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               autoFocus={true}
             />
             <View style={styles.buttonContainer}>
-              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              <TouchableOpacity style={[styles.button, styles.cancelButton, { backgroundColor: colors.background }]} onPress={onClose}>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+              <TouchableOpacity style={[styles.button, styles.saveButton, { backgroundColor: colors.primary }]} onPress={handleSave}>
                 <Text style={styles.saveButtonText}>Guardar</Text>
               </TouchableOpacity>
             </View>
@@ -70,7 +72,6 @@ const styles = StyleSheet.create({
     },
     modalView: {
         width: '90%',
-        backgroundColor: 'white',
         borderRadius: 20,
         padding: 25,
         alignItems: 'center',
@@ -84,17 +85,14 @@ const styles = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         marginBottom: 25,
-        color: '#1e293b',
     },
     input: {
         width: '100%',
         height: 50,
-        borderColor: '#cbd5e1',
         borderWidth: 1,
         borderRadius: 12,
         paddingHorizontal: 15,
         marginBottom: 20,
-        backgroundColor: '#f8fafc',
         fontSize: 16,
     },
     buttonContainer: {
@@ -110,16 +108,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: '#e2e8f0',
         marginRight: 10,
     },
     cancelButtonText: {
-        color: '#475569',
         fontWeight: 'bold',
         fontSize: 16,
     },
     saveButton: {
-        backgroundColor: '#3b82f6',
         marginLeft: 10,
     },
     saveButtonText: {
