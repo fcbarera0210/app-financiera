@@ -22,6 +22,7 @@ type User = firebase.User;
 
 // --- Importamos TODOS nuestros componentes NATIVOS ---
 import FormularioTransaccion from '../components/FormularioTransaccion';
+import GastosChart from '../components/GastosChart'; // <-- Importamos nuestro nuevo gráfico
 import Historial from '../components/Historial';
 import LoginScreen from '../components/LoginScreen';
 import ModalConfirmacion from '../components/ModalConfirmacion';
@@ -57,8 +58,7 @@ export default function AppScreen() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false); // <-- NUEVO ESTADO
+  const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('todos');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [notification, setNotification] = useState({ message: '', type: 'error' as 'success' | 'error', visible: false });
@@ -66,7 +66,9 @@ export default function AppScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [displayDate, setDisplayDate] = useState(new Date());
   const [savedCredentials, setSavedCredentials] = useState<{email: string, pass: string} | null>(null);
+  const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
 
+  // --- Listeners y Lógica de Autenticación ---
   useEffect(() => {
     const loadCredentials = async () => {
         const email = await AsyncStorage.getItem('savedEmail');
@@ -83,8 +85,8 @@ export default function AppScreen() {
       setUser(currentUser);
       if (!currentUser) {
         setUserProfile(null);
-        setAuthLoading(false);
-        setIsInitialDataLoaded(true); // Si no hay usuario, no hay datos que cargar
+        setLoading(false);
+        setIsInitialDataLoaded(true);
       }
     });
     return unsubscribe;
@@ -102,7 +104,7 @@ export default function AppScreen() {
         const userTransactions: Transaction[] = [];
         snapshot.forEach((doc) => userTransactions.push({ id: doc.id, ...doc.data() } as Transaction));
         setTransactions(userTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setIsInitialDataLoaded(true); // <-- Marcamos que los datos iniciales ya cargaron
+        setIsInitialDataLoaded(true);
       });
 
     const unsubscribeCategories = db.collection("users").doc(user.uid).collection("data").doc("categories")
@@ -116,7 +118,7 @@ export default function AppScreen() {
         if (doc.exists) {
             setUserProfile(doc.data() as UserProfile);
         }
-        setAuthLoading(false); // <-- Movemos el fin de la carga de auth aquí
+        setLoading(false);
       });
 
     return () => {
@@ -200,9 +202,7 @@ export default function AppScreen() {
     }
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    setTransactionToDelete(id);
-  };
+  const handleDeleteTransaction = (id: string) => setTransactionToDelete(id);
 
   const executeDelete = async () => {
     if (!user || !transactionToDelete) return;
@@ -275,7 +275,7 @@ export default function AppScreen() {
     return transactionsForMonth.filter(t => t.category === activeFilter);
   }, [transactionsForMonth, activeFilter]);
 
-  if (authLoading) {
+  if (loading) {
     return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
   }
 
@@ -305,6 +305,9 @@ export default function AppScreen() {
                 categories={categories}
                 showNotification={showNotification} 
               />
+              
+              <GastosChart transactions={transactionsForMonth} />
+
               <View style={[styles.monthNavigator, { backgroundColor: colors.card }]}>
                   <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.arrowButton}>
                       <Text style={[styles.arrowText, { color: colors.primary }]}>{"<"}</Text>
@@ -329,7 +332,7 @@ export default function AppScreen() {
           </ScrollView>
           
           <ModalSaldoInicial
-            visible={!isInitialDataLoaded && !authLoading && user !== null && transactions.length === 0}
+            visible={!isInitialDataLoaded && !loading && user !== null && transactions.length === 0}
             onSave={handleSetInitialBalance}
             showNotification={showNotification}
           />

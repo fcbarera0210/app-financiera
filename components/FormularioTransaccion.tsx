@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { useTheme } from '../contexts/ThemeContext'; // Importamos el hook del tema
+import { useTheme } from '../contexts/ThemeContext';
 import { NewTransaction } from '../types';
 import ModalAgregarCategoria from './ModalAgregarCategoria';
 import ModalSeleccionarCategoria from './ModalSeleccionarCategoria';
@@ -22,7 +22,7 @@ interface FormularioTransaccionProps {
 }
 
 const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTransaction, onAddNewCategory, categories, showNotification }) => {
-    const { colors } = useTheme(); // Usamos el hook para obtener los colores
+    const { colors } = useTheme();
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState<'ingreso' | 'gasto'>('gasto');
@@ -129,7 +129,8 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
             {type === 'gasto' && (
                 <View style={styles.categoryRow}>
                     <TouchableOpacity style={[styles.input, styles.pickerInput, { backgroundColor: colors.background, borderColor: colors.border }]} onPress={() => setSelectCategoryModalVisible(true)}>
-                        <Text style={[styles.pickerText, !category && { color: colors.textSecondary }]}>
+                        {/* --- CORRECCIÓN APLICADA AQUÍ --- */}
+                        <Text style={[styles.pickerText, { color: colors.text }, !category && { color: colors.textSecondary }]}>
                             {category || 'Selecciona una categoría'}
                         </Text>
                     </TouchableOpacity>
@@ -218,7 +219,6 @@ const styles = StyleSheet.create({
     pickerText: {
         fontSize: 16,
     },
-    pickerPlaceholder: {},
     categoryRow: {
         flexDirection: 'row',
         alignItems: 'center',
