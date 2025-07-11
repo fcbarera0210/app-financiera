@@ -1,8 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated // Importamos Animated para el botón
+  ,
   ScrollView,
   StyleSheet,
   Switch,
@@ -29,15 +32,26 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, colors, toggleTheme } = useTheme();
   
+  // Estados para los valores actuales del formulario
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [savingsGoal, setSavingsGoal] = useState('');
+  const [isSavingsGoalEnabled, setIsSavingsGoalEnabled] = useState(false);
+  
+  // Estado para almacenar los datos iniciales y detectar cambios
+  const [initialData, setInitialData] = useState<any>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Otros estados
   const [email, setEmail] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'error' as 'success' | 'error', visible: false });
 
-  const isDarkMode = theme === 'dark';
+  // Animación para el botón flotante
+  const buttonOpacity = useRef(new Animated.Value(0)).current;
 
+  // Cargar datos iniciales del usuario
   useEffect(() => {
     const fetchUserData = async () => {
       if (auth.currentUser) {
@@ -45,14 +59,50 @@ export default function SettingsScreen() {
         const docSnap = await getDoc(userDocRef);
         if (docSnap.exists()) {
           const userData = docSnap.data();
-          setName(userData.name);
-          setLastName(userData.lastName);
-          setEmail(userData.email);
+          const data = {
+            name: userData.name,
+            lastName: userData.lastName,
+            email: userData.email,
+            isSavingsGoalEnabled: userData.isSavingsGoalEnabled || false,
+            savingsGoal: String(userData.savingsGoal || ''),
+            theme: theme,
+          };
+          // Guardamos los datos iniciales y establecemos los estados actuales
+          setInitialData(data);
+          setName(data.name);
+          setLastName(data.lastName);
+          setEmail(data.email);
+          setIsSavingsGoalEnabled(data.isSavingsGoalEnabled);
+          setSavingsGoal(data.savingsGoal);
         }
       }
     };
     fetchUserData();
   }, []);
+
+  // Detectar si hay cambios en el formulario
+  useEffect(() => {
+    if (initialData) {
+      const currentData = { name, lastName, savingsGoal, isSavingsGoalEnabled, theme };
+      const changed = JSON.stringify(currentData) !== JSON.stringify({
+        name: initialData.name,
+        lastName: initialData.lastName,
+        savingsGoal: initialData.savingsGoal,
+        isSavingsGoalEnabled: initialData.isSavingsGoalEnabled,
+        theme: initialData.theme
+      });
+      setHasChanges(changed);
+    }
+  }, [name, lastName, savingsGoal, isSavingsGoalEnabled, theme, initialData]);
+
+  // Animar la aparición/desaparición del botón
+  useEffect(() => {
+    Animated.timing(buttonOpacity, {
+      toValue: hasChanges ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [hasChanges]);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'error') => {
     setNotification({ message, type, visible: true });
@@ -63,18 +113,27 @@ export default function SettingsScreen() {
       showNotification('El nombre y el apellido no pueden estar vacíos.', 'error');
       return;
     }
+    const numericGoal = parseFloat(savingsGoal);
+    if (isSavingsGoalEnabled && (isNaN(numericGoal) || numericGoal <= 0)) {
+        showNotification('La meta de ahorro debe ser un número mayor a cero.', 'error');
+        return;
+    }
+
     if (auth.currentUser) {
       setIsSaving(true);
       const userDocRef = doc(db, "users", auth.currentUser.uid);
       try {
         await updateDoc(userDocRef, {
           name: name.trim(),
-          lastName: lastName.trim()
+          lastName: lastName.trim(),
+          isSavingsGoalEnabled: isSavingsGoalEnabled,
+          savingsGoal: isSavingsGoalEnabled ? numericGoal : 0
         });
-        router.push({ pathname: '/', params: { notificationMessage: 'Perfil actualizado con éxito' } });
+        // Guardar el tema también si cambió
+        await AsyncStorage.setItem('app-theme', theme);
+        router.push({ pathname: '/', params: { notificationMessage: 'Configuración guardada con éxito' } });
       } catch (error) {
-        showNotification('Error al actualizar el perfil.', 'error');
-        console.error("Error updating document: ", error);
+        showNotification('Error al guardar la configuración.', 'error');
       } finally {
         setIsSaving(false);
       }
@@ -82,8 +141,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: insets.top }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <BackIcon color={colors.primary} />
         </TouchableOpacity>
@@ -104,14 +163,35 @@ export default function SettingsScreen() {
             <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
             <TextInput style={[styles.input, styles.disabledInput, { backgroundColor: colors.background, color: colors.textSecondary }]} value={email} editable={false} />
             <Text style={[styles.helperText, { color: colors.textSecondary }]}>El email no se puede modificar.</Text>
-            
-            <TouchableOpacity 
-              style={[styles.button, { backgroundColor: colors.primary }, isSaving && styles.buttonDisabled]} 
-              onPress={handleSaveChanges}
-              disabled={isSaving}
-            >
-              {isSaving ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Guardar Cambios</Text>}
-            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Metas</Text>
+          <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <View style={styles.row}>
+                <Text style={[styles.rowLabel, { color: colors.text }]}>Activar Meta de Ahorro</Text>
+                <Switch
+                    trackColor={{ false: "#767577", true: colors.primary }}
+                    thumbColor={isSavingsGoalEnabled ? colors.primary : "#f4f3f4"}
+                    onValueChange={() => setIsSavingsGoalEnabled(previousState => !previousState)}
+                    value={isSavingsGoalEnabled}
+                />
+            </View>
+            {isSavingsGoalEnabled && (
+                <>
+                    <View style={{height: 20}}/>
+                    <Text style={[styles.inputLabel, { color: colors.text }]}>Meta de Ahorro Mensual</Text>
+                    <TextInput 
+                        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]} 
+                        value={savingsGoal} 
+                        onChangeText={setSavingsGoal}
+                        placeholder="Ej: 200000"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="numeric"
+                    />
+                </>
+            )}
           </View>
         </View>
 
@@ -131,14 +211,25 @@ export default function SettingsScreen() {
               <Text style={[styles.rowLabel, { color: colors.text }]}>Modo Oscuro</Text>
               <Switch
                 trackColor={{ false: "#767577", true: colors.primary }}
-                thumbColor={isDarkMode ? colors.primary : "#f4f3f4"}
+                thumbColor={theme === 'dark' ? colors.primary : "#f4f3f4"}
                 onValueChange={toggleTheme}
-                value={isDarkMode}
+                value={theme === 'dark'}
               />
             </View>
           </View>
         </View>
       </ScrollView>
+
+      {/* --- BOTÓN FLOTANTE --- */}
+      <Animated.View style={[styles.floatingButtonContainer, { opacity: buttonOpacity, bottom: insets.bottom + 20 }]}>
+          <TouchableOpacity 
+              style={[styles.button, { backgroundColor: colors.primary }, isSaving && styles.buttonDisabled]} 
+              onPress={handleSaveChanges}
+              disabled={isSaving}
+          >
+              {isSaving ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Guardar Cambios</Text>}
+          </TouchableOpacity>
+      </Animated.View>
 
       <ModalCambiarContrasena 
         visible={isPasswordModalVisible}
@@ -167,7 +258,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingBottom: 10,
     borderBottomWidth: 1,
   },
   backButton: {
@@ -179,6 +270,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingBottom: 100, // Espacio para el botón flotante
   },
   section: {
     marginBottom: 30,
@@ -240,5 +332,15 @@ const styles = StyleSheet.create({
   },
   rowLabel: {
     fontSize: 16,
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 10,
   }
 });

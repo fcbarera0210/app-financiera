@@ -21,8 +21,9 @@ import { auth, db, firebase } from '../firebaseConfig';
 type User = firebase.User;
 
 // --- Importamos TODOS nuestros componentes NATIVOS ---
+import AhorroMes from '../components/AhorroMes'; // <-- Importamos el nuevo componente
 import FormularioTransaccion from '../components/FormularioTransaccion';
-import GastosChart from '../components/GastosChart'; // <-- Importamos nuestro nuevo gráfico
+import GastosChart from '../components/GastosChart';
 import Historial from '../components/Historial';
 import LoginScreen from '../components/LoginScreen';
 import ModalConfirmacion from '../components/ModalConfirmacion';
@@ -46,6 +47,7 @@ interface UserProfile {
   name: string;
   lastName: string;
   email: string;
+  savingsGoal?: number; // La meta de ahorro es opcional
 }
 
 // --- Componente Principal de la App ---
@@ -307,6 +309,12 @@ export default function AppScreen() {
               />
               
               <GastosChart transactions={transactionsForMonth} />
+
+              <AhorroMes 
+                monthlyIncome={monthlyIncome}
+                monthlyExpenses={monthlyExpenses}
+                savingsGoal={userProfile?.savingsGoal || 0}
+              />
 
               <View style={[styles.monthNavigator, { backgroundColor: colors.card }]}>
                   <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.arrowButton}>
