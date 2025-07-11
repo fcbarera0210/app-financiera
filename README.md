@@ -1,50 +1,81 @@
-# Welcome to your Expo app 👋
+App de Control Financiero
+Una aplicación móvil personal, construida con React Native y Expo, para llevar un control detallado de los ingresos y gastos mensuales. La app utiliza Firebase para la autenticación y el almacenamiento de datos en tiempo real.
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+✨ Características Principales
+Autenticación de Usuarios: Sistema de registro e inicio de sesión seguro con Firebase Auth.
 
-## Get started
+Gestión de Transacciones: Añade, edita y elimina ingresos o gastos.
 
-1. Install dependencies
+Análisis Visual: Un dashboard interactivo con un gráfico de pastel que desglosa los gastos por categoría.
 
-   ```bash
-   npm install
-   ```
+Metas de Ahorro: Define una meta de ahorro mensual y sigue tu progreso con una barra visual.
 
-2. Start the app
+Recordatorios Inteligentes: Configura recordatorios para pagos y cobros recurrentes para no olvidar nunca un movimiento.
 
-   ```bash
-   npx expo start
-   ```
+Historial por Meses: Navega fácilmente entre diferentes meses para analizar tus finanzas pasadas.
 
-In the output, you'll find options to open the app in a
+Modo Oscuro: Interfaz adaptable para una mejor experiencia visual en cualquier condición de luz.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Personalización: Edita tu perfil de usuario y configura la aplicación a tu gusto.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+🛠️ Tecnologías Utilizadas
+Framework: React Native con Expo
 
-## Get a fresh project
+Lenguaje: TypeScript
 
-When you're ready, run:
+Base de Datos: Google Firestore (NoSQL en tiempo real)
 
-```bash
-npm run reset-project
-```
+Autenticación: Firebase Authentication
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Navegación: Expo Router
 
-## Learn more
+Gráficos: react-native-svg para un componente de gráfico de pastel personalizado.
 
-To learn more about developing your project with Expo, look at the following resources:
+🚀 Cómo Empezar
+Sigue estos pasos para levantar el proyecto en un entorno de desarrollo local.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Prerrequisitos:
 
-## Join the community
+Node.js (versión LTS recomendada)
 
-Join our community of developers creating universal apps.
+Git
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Una cuenta de Firebase
+
+La aplicación Expo Go en tu dispositivo móvil (iOS o Android)
+
+1. Clonar el Repositorio
+
+git clone https://github.com/fcbarera0210/app-financiera.git
+cd app-financiera
+
+2. Instalar Dependencias
+
+npm install
+
+3. Configurar Firebase
+
+Crea un archivo firebaseConfig.ts en la raíz del proyecto.
+
+Pega tu configuración de Firebase en este archivo, asegurándote de que exporte las variables auth y db correctamente.
+
+4. Iniciar el Servidor de Desarrollo
+Para una conexión más estable con el dispositivo móvil, se recomienda usar el modo túnel.
+
+npx expo start --tunnel
+
+5. Abrir la Aplicación
+Escanea el código QR que aparece en la terminal con la aplicación Expo Go en tu celular.
+
+🔮 Próximas Mejoras
+Puedes revisar nuestra hoja de ruta actualizada aquí. (Nota: Este enlace es un placeholder, ya que nuestro documento actual es privado. En un proyecto real, podrías enlazar a la sección de "Projects" o "Issues" de GitHub).
+
+Notificaciones Push para Recordatorios
+
+Soporte Multi-Cuenta
+
+Presupuestos por Categoría
+
+Exportar Datos a CSV/PDF
+
+Análisis con IA (Integración con Gemini)
