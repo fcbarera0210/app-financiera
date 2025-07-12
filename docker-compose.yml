@@ -1,0 +1,33 @@
+# Especifica la versión de la sintaxis de Docker Compose
+version: '3.8'
+
+# Define los servicios (contenedores) que compondrán nuestra aplicación
+services:
+  # Nuestro servicio principal, que llamaremos 'app'
+  app:
+    # Le dice a Docker Compose que construya la imagen usando el Dockerfile
+    # que se encuentra en el directorio actual ('.')
+    build: .
+    
+    # Mapea los puertos. Expo necesita varios puertos para funcionar.
+    # Mapeamos el puerto 8081 del contenedor al 8081 de nuestra máquina.
+    # También mapeamos el 19000 para el servidor de Expo y el 19001/19002 para la inspección.
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+      
+    # Volúmenes: La parte más importante para el desarrollo.
+    # Esto sincroniza nuestro código local con el código dentro del contenedor.
+    # Cualquier cambio que hagas en tu editor se reflejará instantáneamente.
+    volumes:
+      # Sincroniza la carpeta actual ('.') con '/usr/src/app' en el contenedor
+      - .:/usr/src/app
+      # Excluimos node_modules para evitar conflictos. El contenedor usará su propia copia.
+      - /usr/src/app/node_modules
+      
+    # Mantiene la terminal interactiva, necesario para el CLI de Expo
+    stdin_open: true
+    tty: true
+
