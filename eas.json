@@ -11,14 +11,11 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "production"
+        "ANDROID_HOME": "/mnt/c/Users/Felipe/AppData/Local/Android/Sdk"
       }
     },
     "production": {
-      "autoIncrement": true,
-      "env": {
-        "NODE_ENV": "production"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {

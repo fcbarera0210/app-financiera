@@ -14,7 +14,7 @@ Una aplicación móvil personal y multiplataforma, construida con React Native y
 * **Metas de Ahorro:** Define una meta de ahorro mensual y sigue tu progreso con una barra visual.
 * **Recordatorios Inteligentes:** Configura recordatorios para pagos y cobros recurrentes.
 * **Historial por Meses:** Navega fácilmente entre diferentes meses para analizar tus finanzas pasadas.
-* **Modo Oscuro:** Interfaz adaptable para una mejor experiencia visual.
+* **Modo Oscuro:** Interfaz adaptable para una mejor experiencia visual en cualquier condición de luz.
 * **Personalización:** Edita tu perfil de usuario y configura la aplicación a tu gusto.
 
 ---
@@ -74,37 +74,30 @@ docker-compose up
 * El servidor de Expo se iniciará automáticamente en modo túnel.
 * Escanea el código QR que aparece en la terminal con la aplicación Expo Go en tu celular.
 
-### Método 2: Entorno Local (Sin Docker)
+---
+
+## 📦 Compilación de APK para Producción
+
+Sigue estos pasos para generar un archivo `.apk` instalable.
 
 **Prerrequisitos:**
-* Node.js (versión LTS recomendada)
-* Git
-* Una cuenta de Firebase
-* La aplicación Expo Go en tu dispositivo móvil (iOS o Android)
+* **EAS CLI:** Asegúrate de tener la CLI de Expo instalada globalmente (`npm install -g eas-cli`).
+* **Login en Expo:** Inicia sesión en tu cuenta de Expo desde la terminal (`eas login`).
+* **Entorno WSL:** Si usas Windows, todos los comandos deben ejecutarse desde la terminal de Ubuntu (WSL).
 
-**1. Clonar e Instalar**
+**1. Instalar Dependencias**
+Asegúrate de que todas las dependencias del proyecto estén instaladas.
 ```bash
-git clone [https://github.com/fcbarera0210/app-financiera.git](https://github.com/fcbarera0210/app-financiera.git)
-cd app-financiera
 npm install
 ```
 
-**2. Configurar Firebase**
-* Crea y configura tu archivo `firebaseConfig.ts`.
-
-**3. Iniciar el Servidor de Desarrollo**
+**2. Iniciar la Compilación Local**
+Este comando iniciará el proceso de compilación para Android, utilizando el perfil `preview` definido en `eas.json`.
 ```bash
-npx expo start --tunnel
+eas build -p android --profile preview --local
 ```
 
+**3. Encontrar el APK**
+Una vez que el proceso termine con éxito, EAS te indicará la ruta donde se guardó el archivo `.apk`. Generalmente estará en una carpeta llamada `build` dentro de tu proyecto.
+
 ---
-
-### 🔮 Fase Actual: Funcionalidades Avanzadas
-
-* **Notificaciones y Recordatorios v2:** `➡️ Próximo Paso` - Implementar notificaciones push y el registro rápido de transacciones desde un recordatorio.
-
-### Próximas Fases
-
-* **Soporte Multi-Cuenta:** Permitir la gestión de múltiples billeteras (Cuentas Corrientes, Tarjetas de Crédito, etc.).
-* **Presupuestos y Análisis Avanzado:** Añadir presupuestos por categoría y herramientas de exportación de datos (CSV/PDF).
-* **Personalización y Asistente IA:** Permitir reordenar el dashboard e integrar Gemini para ofrecer insights sobre los patrones de gasto.
