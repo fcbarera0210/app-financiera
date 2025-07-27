@@ -1,5 +1,18 @@
+export interface Account {
+  id: string;
+  name: string;
+  balance: number;
+  color?: string; // <-- CAMPO AÑADIDO (opcional por ahora)
+  type?: 'Efectivo' | 'Tarjeta' | 'Ahorros'; // <-- CAMPO AÑADIDO (opcional por ahora)
+}
+
+export type NewAccount = Omit<Account, 'id' | 'balance'> & {
+  initialBalance: number;
+};
+
 export interface Transaction {
   id: string;
+  accountId: string;
   description: string;
   amount: number;
   type: 'ingreso' | 'gasto';
@@ -7,17 +20,16 @@ export interface Transaction {
   date: string; // ISO String
 }
 
-// Omite el 'id' para crear nuevas transacciones, ya que lo genera Firestore.
 export type NewTransaction = Omit<Transaction, 'id'>;
 
-// --- TIPO DE RECORDATORIO ACTUALIZADO ---
 export interface Reminder {
   id: string;
-  name: string; // ej. "Pago de Luz"
+  accountId: string;
+  name: string;
   type: 'ingreso' | 'gasto';
-  category: string | null; // Solo si es de tipo 'gasto'
-  dayOfMonth: number; // El día del mes para el recordatorio (1-31)
-  completedMonths?: string[]; // Array para guardar meses completados, ej: ["2025-06", "2025-07"]
+  category: string | null;
+  dayOfMonth: number;
+  completedMonths?: string[];
 }
 
 export type NewReminder = Omit<Reminder, 'id'>;

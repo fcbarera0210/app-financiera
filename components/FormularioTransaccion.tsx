@@ -1,3 +1,5 @@
+// components/FormularioTransaccion.tsx
+
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
@@ -19,9 +21,10 @@ interface FormularioTransaccionProps {
   onAddNewCategory: (newCategory: string) => void;
   categories: string[];
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  accountId: string | null; // <-- PROP AÑADIDA
 }
 
-const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTransaction, onAddNewCategory, categories, showNotification }) => {
+const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTransaction, onAddNewCategory, categories, showNotification, accountId }) => {
     const { colors } = useTheme();
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
@@ -34,7 +37,7 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
     const [isSelectCategoryModalVisible, setSelectCategoryModalVisible] = useState(false);
 
     const handleSubmit = async () => {
-        if (isSubmitting) return;
+        if (isSubmitting || !accountId) return;
 
         const numericAmount = parseFloat(amount);
         if (!description || isNaN(numericAmount) || numericAmount <= 0) {
@@ -52,7 +55,8 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
             amount: numericAmount, 
             type, 
             category: type === 'gasto' ? category.trim() : null,
-            date: date.toISOString()
+            date: date.toISOString(),
+            accountId: accountId, // <-- AÑADIDO
         });
         setIsSubmitting(false);
 
@@ -129,7 +133,6 @@ const FormularioTransaccion: React.FC<FormularioTransaccionProps> = ({ onAddTran
             {type === 'gasto' && (
                 <View style={styles.categoryRow}>
                     <TouchableOpacity style={[styles.input, styles.pickerInput, { backgroundColor: colors.background, borderColor: colors.border }]} onPress={() => setSelectCategoryModalVisible(true)}>
-                        {/* --- CORRECCIÓN APLICADA AQUÍ --- */}
                         <Text style={[styles.pickerText, { color: colors.text }, !category && { color: colors.textSecondary }]}>
                             {category || 'Selecciona una categoría'}
                         </Text>

@@ -15,11 +15,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { G, Path, Svg } from 'react-native-svg';
 
-// Importación de Firebase y sus servicios (modo compat)
+// Importación de Firebase y sus servicios
 import { auth, db, firebase } from '../firebaseConfig';
 type User = firebase.User;
 
-// --- Importamos TODOS nuestros componentes NATIVOS ---
+// Componentes Nativos
+import AccountSelector from '../components/AccountSelector';
 import AhorroMes from '../components/AhorroMes';
 import FormularioTransaccion from '../components/FormularioTransaccion';
 import GastosChart from '../components/GastosChart';
@@ -27,16 +28,15 @@ import Historial from '../components/Historial';
 import LoginScreen from '../components/LoginScreen';
 import ModalConfirmacion from '../components/ModalConfirmacion';
 import ModalEditarTransaccion from '../components/ModalEditarTransaccion';
-import ModalSaldoInicial from '../components/ModalSaldoInicial';
 import Notification from '../components/Notification';
 import RecordatoriosPanel from '../components/RecordatoriosPanel';
 import SaldoPanel from '../components/SaldoPanel';
 import { useTheme } from '../contexts/ThemeContext';
 
-// Importación de los tipos que definimos
-import { NewTransaction, Reminder, Transaction } from '../types';
+// Tipos
+import { Account, NewTransaction, Reminder, Transaction } from '../types';
 
-// --- Icono de Configuración Rediseñado ---
+// Icono de Configuración
 const SettingsIcon = ({ color }: { color: string }) => (
     <Svg height="26" width="26" viewBox="0 0 867 864">
         <G fill={color}>
@@ -54,7 +54,6 @@ interface UserProfile {
   isSavingsGoalEnabled?: boolean;
 }
 
-// --- Componente Principal de la App ---
 export default function AppScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
@@ -62,11 +61,15 @@ export default function AppScreen() {
 
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+  
   const [activeFilter, setActiveFilter] = useState('todos');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [notification, setNotification] = useState({ message: '', type: 'error' as 'success' | 'error', visible: false });
@@ -75,9 +78,8 @@ export default function AppScreen() {
   const [displayDate, setDisplayDate] = useState(new Date());
   const [savedCredentials, setSavedCredentials] = useState<{email: string, pass: string} | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [reminderToComplete, setReminderToComplete] = useState<string | null>(null); // <-- NUEVO ESTADO
+  const [reminderToComplete, setReminderToComplete] = useState<string | null>(null);
 
-  // --- Listeners y Lógica de Autenticación ---
   useEffect(() => {
     const loadCredentials = async () => {
         const email = await AsyncStorage.getItem('savedEmail');
@@ -88,7 +90,7 @@ export default function AppScreen() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setUserProfile(null);
@@ -101,21 +103,36 @@ export default function AppScreen() {
 
   useEffect(() => {
     if (!user) {
-      setTransactions([]);
+      setAllTransactions([]);
       setCategories([]);
       setReminders([]);
+      setAccounts([]);
+      setSelectedAccountId(null);
       return;
     }
 
     const unsubTransactions = db.collection("users").doc(user.uid).collection("transactions").onSnapshot((snapshot) => {
       const userTransactions: Transaction[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
-      setTransactions(userTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setAllTransactions(userTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
       setIsInitialDataLoaded(true);
+    });
+
+    const unsubAccounts = db.collection("users").doc(user.uid).collection("accounts").onSnapshot((snapshot) => {
+        const userAccounts: Account[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+        setAccounts(userAccounts);
+        if (snapshot.docs.length > 0) {
+            // Si la cuenta seleccionada ya no existe, o si no hay ninguna seleccionada, elige la primera.
+            const currentSelectionExists = userAccounts.some(acc => acc.id === selectedAccountId);
+            if (!currentSelectionExists) {
+                setSelectedAccountId(userAccounts[0].id);
+            }
+        } else {
+            setSelectedAccountId(null);
+        }
     });
 
     const unsubCategories = db.collection("users").doc(user.uid).collection("data").doc("categories").onSnapshot((doc) => {
       if (doc.exists) setCategories(doc.data()?.list.sort() || []);
-      else setCategories([]);
     });
       
     const unsubProfile = db.collection("users").doc(user.uid).onSnapshot((doc) => {
@@ -133,8 +150,9 @@ export default function AppScreen() {
       unsubCategories();
       unsubProfile();
       unsubReminders();
+      unsubAccounts();
     };
-  }, [user]);
+  }, [user, selectedAccountId]);
 
   useEffect(() => {
     if (params.notificationMessage) {
@@ -186,12 +204,7 @@ export default function AppScreen() {
     if (!user || !newCategory) return;
     const categoriesDocRef = db.collection("users").doc(user.uid).collection("data").doc("categories");
     try {
-        const docSnap = await categoriesDocRef.get();
-        if (docSnap.exists) {
-            await categoriesDocRef.update({ list: firebase.firestore.FieldValue.arrayUnion(newCategory) });
-        } else {
-            await categoriesDocRef.set({ list: [newCategory] });
-        }
+        await categoriesDocRef.set({ list: firebase.firestore.FieldValue.arrayUnion(newCategory) }, { merge: true });
         showNotification("Categoría añadida", "success");
     } catch(error) {
         showNotification("Error al guardar la categoría.");
@@ -205,7 +218,17 @@ export default function AppScreen() {
       if (newTx.type === 'gasto' && newTx.category && !categories.includes(newTx.category)) {
         await handleAddNewCategory(newTx.category);
       }
-      await db.collection("users").doc(user.uid).collection("transactions").add(newTx);
+      
+      const batch = db.batch();
+      const transactionRef = db.collection("users").doc(user.uid).collection("transactions").doc();
+      batch.set(transactionRef, newTx);
+
+      const accountRef = db.collection("users").doc(user.uid).collection("accounts").doc(newTx.accountId);
+      const increment = newTx.type === 'ingreso' ? newTx.amount : -newTx.amount;
+      batch.update(accountRef, { balance: firebase.firestore.FieldValue.increment(increment) });
+
+      await batch.commit();
+
     } catch (error) { 
       showNotification("No se pudo guardar el movimiento."); 
     }
@@ -217,7 +240,22 @@ export default function AppScreen() {
     if (!user || !transactionToDelete) return;
     setIsDeleting(true);
     try {
-      await db.collection("users").doc(user.uid).collection("transactions").doc(transactionToDelete).delete();
+      const transactionRef = db.collection("users").doc(user.uid).collection("transactions").doc(transactionToDelete);
+      const transactionDoc = await transactionRef.get();
+      const transactionData = transactionDoc.data() as Transaction;
+
+      if (!transactionData) {
+        throw new Error("Transacción no encontrada");
+      }
+
+      const batch = db.batch();
+      batch.delete(transactionRef);
+
+      const accountRef = db.collection("users").doc(user.uid).collection("accounts").doc(transactionData.accountId);
+      const increment = transactionData.type === 'ingreso' ? -transactionData.amount : transactionData.amount;
+      batch.update(accountRef, { balance: firebase.firestore.FieldValue.increment(increment) });
+
+      await batch.commit();
       showNotification("Movimiento eliminado", "success");
     } catch (error) { 
       showNotification("Error al eliminar el movimiento.");
@@ -232,20 +270,28 @@ export default function AppScreen() {
     if (updatedTx.type === 'gasto' && updatedTx.category && !categories.includes(updatedTx.category)) {
         await handleAddNewCategory(updatedTx.category);
     }
+    
     const { id, ...dataToUpdate } = updatedTx;
     try {
-      await db.collection("users").doc(user.uid).collection("transactions").doc(id).update(dataToUpdate);
+      const transactionRef = db.collection("users").doc(user.uid).collection("transactions").doc(id);
+      const originalTxDoc = await transactionRef.get();
+      const originalTx = originalTxDoc.data() as Transaction;
+
+      const batch = db.batch();
+      batch.update(transactionRef, dataToUpdate);
+
+      const amountDifference = (updatedTx.type === 'ingreso' ? updatedTx.amount : -updatedTx.amount) - (originalTx.type === 'ingreso' ? originalTx.amount : -originalTx.amount);
+      if (amountDifference !== 0) {
+        const accountRef = db.collection("users").doc(user.uid).collection("accounts").doc(updatedTx.accountId);
+        batch.update(accountRef, { balance: firebase.firestore.FieldValue.increment(amountDifference) });
+      }
+
+      await batch.commit();
       setEditingTransaction(null);
       showNotification('Movimiento actualizado', 'success');
     } catch (error) { 
       showNotification("Error al actualizar.");
     }
-  };
-
-  const handleSetInitialBalance = async (amount: number) => {
-    if (!user) return;
-    const initialTx: NewTransaction = { description: 'Saldo Inicial', amount, type: 'ingreso', category: null, date: new Date().toISOString() };
-    await handleAddTransaction(initialTx);
   };
   
   const handleToggleReminder = async () => {
@@ -271,11 +317,21 @@ export default function AppScreen() {
     });
   };
 
-  const { balance, monthlyIncome, monthlyExpenses } = useMemo(() => {
+  // --- Datos Memoizados ---
+  const selectedAccount = useMemo(() => {
+    return accounts.find(acc => acc.id === selectedAccountId) || null;
+  }, [accounts, selectedAccountId]);
+
+  const transactionsForSelectedAccount = useMemo(() => {
+    if (!selectedAccountId) return [];
+    return allTransactions.filter(t => t.accountId === selectedAccountId);
+  }, [allTransactions, selectedAccountId]);
+
+  const { monthlyIncome, monthlyExpenses } = useMemo(() => {
     const currentMonth = displayDate.getMonth();
     const currentYear = displayDate.getFullYear();
-    const totalBalance = transactions.reduce((acc, t) => acc + (t.type === 'ingreso' ? t.amount : -t.amount), 0);
-    const { income, expenses } = transactions.reduce((acc, t) => {
+    
+    const { income, expenses } = transactionsForSelectedAccount.reduce((acc, t) => {
       const txDate = new Date(t.date);
       if (txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear) {
         if (t.type === 'ingreso') acc.income += t.amount;
@@ -283,17 +339,18 @@ export default function AppScreen() {
       }
       return acc;
     }, { income: 0, expenses: 0 });
-    return { balance: totalBalance, monthlyIncome: income, monthlyExpenses: expenses };
-  }, [transactions, displayDate]);
+
+    return { monthlyIncome: income, monthlyExpenses: expenses };
+  }, [transactionsForSelectedAccount, displayDate]);
 
   const transactionsForMonth = useMemo(() => {
     const currentMonth = displayDate.getMonth();
     const currentYear = displayDate.getFullYear();
-    return transactions.filter(t => {
+    return transactionsForSelectedAccount.filter(t => {
         const txDate = new Date(t.date);
         return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     });
-  }, [transactions, displayDate]);
+  }, [transactionsForSelectedAccount, displayDate]);
 
   const filteredTransactions = useMemo(() => {
     if (activeFilter === 'todos') return transactionsForMonth;
@@ -322,52 +379,83 @@ export default function AppScreen() {
                 </TouchableOpacity>
             </View>
           </View>
+          
+          <AccountSelector
+            accounts={accounts}
+            selectedAccountId={selectedAccountId}
+            onSelectAccount={setSelectedAccountId}
+          />
+
           <ScrollView style={styles.scrollView} contentContainerStyle={styles.innerContainer} keyboardShouldPersistTaps="handled">
-              <SaldoPanel balance={balance} monthlyIncome={monthlyIncome} monthlyExpenses={monthlyExpenses} />
               
-              <View style={[styles.monthNavigator, { backgroundColor: colors.card }]}>
-                  <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.arrowButton}>
-                      <Text style={[styles.arrowText, { color: colors.primary }]}>{"<"}</Text>
-                  </TouchableOpacity>
-                  <Text style={[styles.monthText, { color: colors.text }]}>
-                      {displayDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-                  </Text>
-                  <TouchableOpacity onPress={() => changeMonth(1)} style={styles.arrowButton}>
-                      <Text style={[styles.arrowText, { color: colors.primary }]}>{">"}</Text>
-                  </TouchableOpacity>
-              </View>
+              {isInitialDataLoaded && accounts.length === 0 && (
+                <View style={[styles.card, {backgroundColor: colors.card}]}>
+                  <Text style={[styles.title, {color: colors.text}]}>¡Bienvenido!</Text>
+                  <Text style={[styles.subtitle, {color: colors.textSecondary, marginBottom: 20}]}>Para empezar, crea tu primera cuenta (ej: Billetera, Banco Principal).</Text>
+                  <Link href="/settings" asChild>
+                    <TouchableOpacity style={[styles.button, {backgroundColor: colors.primary}]}>
+                      <Text style={styles.buttonText}>Crear mi primera cuenta</Text>
+                    </TouchableOpacity>
+                  </Link>
+                </View>
+              )}
 
-              <RecordatoriosPanel 
-                reminders={reminders}
-                displayDate={displayDate}
-                onTogglePress={(reminderId) => setReminderToComplete(reminderId)}
-                loadingReminder={null} // Se manejará en el futuro si es necesario
-              />
+              {accounts.length > 0 && selectedAccount && (
+                <>
+                  <SaldoPanel 
+                    balance={selectedAccount.balance} 
+                    monthlyIncome={monthlyIncome} 
+                    monthlyExpenses={monthlyExpenses} 
+                    color={selectedAccount.color || colors.primary} // <-- AÑADE ESTA LÍNEA
+                  />
+                  
+                  <View style={[styles.monthNavigator, { backgroundColor: colors.card }]}>
+                      <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.arrowButton}>
+                          <Text style={[styles.arrowText, { color: colors.primary }]}>{"<"}</Text>
+                      </TouchableOpacity>
+                      <Text style={[styles.monthText, { color: colors.text }]}>
+                          {displayDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
+                      </Text>
+                      <TouchableOpacity onPress={() => changeMonth(1)} style={styles.arrowButton}>
+                          <Text style={[styles.arrowText, { color: colors.primary }]}>{">"}</Text>
+                      </TouchableOpacity>
+                  </View>
 
-              <FormularioTransaccion 
-                onAddTransaction={handleAddTransaction} 
-                onAddNewCategory={handleAddNewCategory}
-                categories={categories}
-                showNotification={showNotification} 
-              />
-              
-              <GastosChart transactions={transactionsForMonth} />
-              <AhorroMes 
-                monthlyIncome={monthlyIncome}
-                monthlyExpenses={monthlyExpenses}
-                savingsGoal={userProfile?.savingsGoal || 0}
-              />
-              <Historial 
-                transactions={filteredTransactions}
-                categories={categories}
-                onDelete={handleDeleteTransaction}
-                onEdit={setEditingTransaction}
-                onFilter={setActiveFilter}
-                activeFilter={activeFilter}
-              />
+                  <RecordatoriosPanel 
+                    reminders={reminders.filter(r => r.accountId === selectedAccountId)}
+                    displayDate={displayDate}
+                    onTogglePress={(reminderId) => setReminderToComplete(reminderId)}
+                    loadingReminder={null}
+                  />
+
+                  <FormularioTransaccion 
+                    onAddTransaction={handleAddTransaction} 
+                    onAddNewCategory={handleAddNewCategory}
+                    categories={categories}
+                    showNotification={showNotification} 
+                    accountId={selectedAccountId}
+                  />
+                  
+                  <GastosChart transactions={transactionsForMonth} />
+                  
+                  <AhorroMes 
+                    monthlyIncome={monthlyIncome}
+                    monthlyExpenses={monthlyExpenses}
+                    savingsGoal={userProfile?.savingsGoal || 0}
+                  />
+
+                  <Historial 
+                    transactions={filteredTransactions}
+                    categories={categories}
+                    onDelete={handleDeleteTransaction}
+                    onEdit={setEditingTransaction}
+                    onFilter={setActiveFilter}
+                    activeFilter={activeFilter}
+                  />
+                </>
+              )}
           </ScrollView>
           
-          <ModalSaldoInicial visible={!isInitialDataLoaded && !loading && user !== null && transactions.length === 0} onSave={handleSetInitialBalance} showNotification={showNotification} />
           {editingTransaction && <ModalEditarTransaccion visible={!!editingTransaction} transaction={editingTransaction} onSave={handleUpdateTransaction} onCancel={() => setEditingTransaction(null)} categories={categories} showNotification={showNotification} />}
           <ModalConfirmacion visible={!!transactionToDelete} title="Eliminar Movimiento" message="¿Estás seguro de que quieres eliminar esta transacción?" onCancel={() => setTransactionToDelete(null)} onConfirm={executeDelete} confirmText="Eliminar" isConfirming={isDeleting} />
           <ModalConfirmacion visible={showLogoutModal} title="Cerrar Sesión" message="¿Estás seguro de que quieres cerrar tu sesión?" onCancel={() => setShowLogoutModal(false)} onConfirm={handleLogout} confirmText="Salir" />
@@ -388,7 +476,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  innerContainer: { padding: 20, paddingBottom: 50 },
+  innerContainer: { padding: 20, paddingTop: 0, paddingBottom: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, borderBottomWidth: 1, },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 15, },
   iconButton: { padding: 5, },
@@ -401,4 +489,9 @@ const styles = StyleSheet.create({
   monthText: { fontSize: 18, fontWeight: 'bold', textTransform: 'capitalize', paddingVertical: 15, },
   arrowButton: { padding: 10, },
   arrowText: { fontSize: 24, fontWeight: 'bold', },
+  card: { borderRadius: 12, padding: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2, marginVertical: 20 },
+  title: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+  subtitle: { fontSize: 16, textAlign: 'center', marginTop: 10, lineHeight: 22 },
+  button: { paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+  buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 });

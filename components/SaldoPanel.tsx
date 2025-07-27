@@ -13,19 +13,37 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
+// Esta función toma un color hexadecimal y lo oscurece en un porcentaje
+const darkenColor = (color: string, percent: number) => {
+    const num = parseInt(color.replace("#", ""), 16),
+        amt = Math.round(2.55 * percent),
+        R = (num >> 16) - amt,
+        G = (num >> 8 & 0x00FF) - amt,
+        B = (num & 0x0000FF) - amt;
+
+    return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
+};
+
+
 interface SaldoPanelProps {
   balance: number;
   monthlyIncome: number;
   monthlyExpenses: number;
+  color: string;
 }
 
-const SaldoPanel: React.FC<SaldoPanelProps> = ({ balance, monthlyIncome, monthlyExpenses }) => {
-    const { colors } = useTheme(); // Usamos el hook para obtener los colores
+const SaldoPanel: React.FC<SaldoPanelProps> = ({ balance, monthlyIncome, monthlyExpenses, color }) => {
+    const { colors } = useTheme();
+
+    const gradientColor = color || colors.primary;
+    // --- CORRECCIÓN APLICADA AQUÍ ---
+    // Especificamos explícitamente el tipo como una tupla de dos strings.
+    const gradientColors: [string, string] = [gradientColor, darkenColor(gradientColor, 10)];
+
 
     return (
         <LinearGradient
-            // Los colores del degradado se mantienen para un look consistente
-            colors={['#4A90E2', '#357ABD']}
+            colors={gradientColors}
             style={styles.container}
         >
             <View style={styles.balanceContainer}>
@@ -98,10 +116,10 @@ const styles = StyleSheet.create({
         marginTop: 5,
     },
     income: {
-        color: '#90ee90', // Verde claro se ve bien en ambos modos
+        color: '#90ee90', 
     },
     expense: {
-        color: '#f08080', // Coral claro se ve bien en ambos modos
+        color: '#f08080',
     },
 });
 

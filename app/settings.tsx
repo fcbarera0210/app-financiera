@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, onSnapshot, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,13 +18,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Path, Svg } from 'react-native-svg';
+
+// Componentes
 import ModalCambiarContrasena from '../components/ModalCambiarContrasena';
 import ModalConfirmacion from '../components/ModalConfirmacion';
+import ModalGestionarCuenta from '../components/ModalGestionarCuenta';
 import ModalGestionarRecordatorio from '../components/ModalGestionarRecordatorio';
 import Notification from '../components/Notification';
 import { useTheme } from '../contexts/ThemeContext';
 import { auth, db, firebase } from '../firebaseConfig';
-import { NewReminder, Reminder } from '../types';
+import { Account, NewAccount, NewReminder, Reminder } from '../types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -62,6 +65,9 @@ const formatNumber = (value: string) => {
 };
 const parseFormattedNumber = (value: string) => {
     return value.replace(/\./g, '');
+};
+const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 };
 
 // --- Sub-componente para cada recordatorio ---
@@ -132,34 +138,43 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, colors, toggleTheme } = useTheme();
   
+  // Estados de Perfil y Metas
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [savingsGoal, setSavingsGoal] = useState('');
   const [isSavingsGoalEnabled, setIsSavingsGoalEnabled] = useState(false);
-  
   const [initialData, setInitialData] = useState<any>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Estados de Cuentas
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isAccountModalVisible, setAccountModalVisible] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
-  const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
+  // Estados de Recordatorios
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [isReminderModalVisible, setIsReminderModalVisible] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
   const [expandedReminderId, setExpandedReminderId] = useState<string | null>(null);
+  const [reminderToDelete, setReminderToDelete] = useState<Reminder | null>(null);
+  
+  // Estados Generales
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
   const [notification, setNotification] = useState({ message: '', type: 'error' as 'success' | 'error', visible: false });
   const [categories, setCategories] = useState<string[]>([]);
-  const [reminderToDelete, setReminderToDelete] = useState<Reminder | null>(null);
 
   const buttonOpacity = useRef(new Animated.Value(0)).current;
-
-  // --- CORRECCIÓN: Se añade la declaración de isDarkMode ---
   const isDarkMode = theme === 'dark';
 
+  // --- USE EFFECTS ---
   useEffect(() => {
     if (auth.currentUser) {
-      const userDocRef = doc(db, "users", auth.currentUser.uid);
-      const unsubscribeProfile = onSnapshot(userDocRef, (doc) => {
+      const uid = auth.currentUser.uid;
+      
+      const unsubProfile = onSnapshot(doc(db, "users", uid), (doc) => {
         if (doc.exists()) {
           const userData = doc.data();
           const data = {
@@ -179,22 +194,25 @@ export default function SettingsScreen() {
         }
       });
 
-      const remindersColRef = collection(db, "users", auth.currentUser.uid, "reminders");
-      const unsubscribeReminders = onSnapshot(remindersColRef, (snapshot) => {
-          const remindersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder));
-          setReminders(remindersList.sort((a, b) => a.dayOfMonth - b.dayOfMonth));
+      const unsubReminders = onSnapshot(collection(db, "users", uid, "reminders"), (snapshot) => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reminder));
+        setReminders(list.sort((a, b) => a.dayOfMonth - b.dayOfMonth));
       });
 
-      const categoriesDocRef = doc(db, "users", auth.currentUser.uid, "data", "categories");
-      const unsubscribeCategories = onSnapshot(categoriesDocRef, (doc) => {
+      const unsubCategories = onSnapshot(doc(db, "users", uid, "data", "categories"), (doc) => {
         if (doc.exists()) setCategories(doc.data().list.sort());
-        else setCategories([]);
+      });
+
+      const unsubAccounts = onSnapshot(collection(db, "users", uid, "accounts"), (snapshot) => {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Account));
+        setAccounts(list);
       });
 
       return () => {
-        unsubscribeProfile();
-        unsubscribeReminders();
-        unsubscribeCategories();
+        unsubProfile();
+        unsubReminders();
+        unsubCategories();
+        unsubAccounts();
       };
     }
   }, []);
@@ -214,13 +232,11 @@ export default function SettingsScreen() {
   }, [name, lastName, savingsGoal, isSavingsGoalEnabled, theme, initialData]);
 
   useEffect(() => {
-    Animated.timing(buttonOpacity, {
-      toValue: hasChanges ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(buttonOpacity, { toValue: hasChanges ? 1 : 0, duration: 300, useNativeDriver: true }).start();
   }, [hasChanges]);
 
+
+  // --- FUNCIONES ---
   const showNotification = (message: string, type: 'success' | 'error' = 'error') => {
     setNotification({ message, type, visible: true });
   };
@@ -237,9 +253,8 @@ export default function SettingsScreen() {
     }
     if (auth.currentUser) {
       setIsSaving(true);
-      const userDocRef = doc(db, "users", auth.currentUser.uid);
       try {
-        await updateDoc(userDocRef, {
+        await updateDoc(doc(db, "users", auth.currentUser.uid), {
           name: name.trim(),
           lastName: lastName.trim(),
           isSavingsGoalEnabled: isSavingsGoalEnabled,
@@ -256,32 +271,93 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSaveReminder = async (reminderData: NewReminder | Reminder) => {
-    if (auth.currentUser) {
-        const remindersColRef = collection(db, "users", auth.currentUser.uid, "reminders");
-        try {
-            if ('id' in reminderData) {
-                const { id, ...dataToUpdate } = reminderData;
-                const reminderDocRef = doc(db, "users", auth.currentUser.uid, "reminders", id);
-                await updateDoc(reminderDocRef, dataToUpdate as any);
-                showNotification('Recordatorio actualizado.', 'success');
-            } else {
-                await addDoc(remindersColRef, reminderData);
-                showNotification('Recordatorio añadido.', 'success');
+  const handleSaveAccount = async (accountData: NewAccount | Account) => {
+    if (!auth.currentUser) return;
+    setIsSaving(true);
+    try {
+        if ('id' in accountData) {
+            const { id, ...dataToUpdate } = accountData;
+            await updateDoc(doc(db, "users", auth.currentUser.uid, "accounts", id), dataToUpdate as any);
+            showNotification('Cuenta actualizada.', 'success');
+        } else {
+            const { initialBalance, ...newAccountData } = accountData;
+            const batch = writeBatch(db);
+            const newAccountRef = doc(collection(db, "users", auth.currentUser.uid, "accounts"));
+            batch.set(newAccountRef, { ...newAccountData, balance: initialBalance });
+            if (initialBalance > 0) {
+                const newTransactionRef = doc(collection(db, "users", auth.currentUser.uid, "transactions"));
+                batch.set(newTransactionRef, {
+                    accountId: newAccountRef.id,
+                    description: 'Saldo Inicial',
+                    amount: initialBalance,
+                    type: 'ingreso',
+                    category: null,
+                    date: new Date().toISOString(),
+                });
             }
-        } catch (error) {
-            showNotification('Error al guardar el recordatorio.', 'error');
-        } finally {
-            setIsReminderModalVisible(false);
-            setEditingReminder(null);
+            await batch.commit();
+            showNotification('Cuenta creada con éxito.', 'success');
         }
+    } catch (error) {
+        showNotification('Error al guardar la cuenta.', 'error');
+    } finally {
+        setIsSaving(false);
+        setAccountModalVisible(false);
+        setEditingAccount(null);
+    }
+  };
+
+  const executeDeleteAccount = async () => {
+    if (!auth.currentUser || !accountToDelete) return;
+    if (accounts.length <= 1) {
+        showNotification("No puedes eliminar tu única cuenta.", "error");
+        setAccountToDelete(null);
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        const batch = writeBatch(db);
+        const transactionsQuery = query(collection(db, "users", auth.currentUser.uid, "transactions"), where("accountId", "==", accountToDelete.id));
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+        transactionsSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        const accountDocRef = doc(db, "users", auth.currentUser.uid, "accounts", accountToDelete.id);
+        batch.delete(accountDocRef);
+
+        await batch.commit();
+        showNotification(`Cuenta "${accountToDelete.name}" y sus transacciones han sido eliminadas.`, 'success');
+    } catch (error) {
+        showNotification("Error al eliminar la cuenta.", "error");
+        console.error("Error deleting account and transactions: ", error);
+    } finally {
+        setIsSaving(false);
+        setAccountToDelete(null);
+    }
+  };
+  
+  const handleSaveReminder = async (reminderData: NewReminder | Reminder) => {
+    if (!auth.currentUser) return;
+    try {
+        if ('id' in reminderData) {
+            const { id, ...dataToUpdate } = reminderData;
+            await updateDoc(doc(db, "users", auth.currentUser.uid, "reminders", id), dataToUpdate as any);
+            showNotification('Recordatorio actualizado.', 'success');
+        } else {
+            await addDoc(collection(db, "users", auth.currentUser.uid, "reminders"), reminderData);
+            showNotification('Recordatorio añadido.', 'success');
+        }
+    } catch (error) {
+        showNotification('Error al guardar el recordatorio.', 'error');
+    } finally {
+        setIsReminderModalVisible(false);
+        setEditingReminder(null);
     }
   };
 
   const executeDeleteReminder = async () => {
     if (auth.currentUser && reminderToDelete) {
-        const reminderDocRef = doc(db, "users", auth.currentUser.uid, "reminders", reminderToDelete.id);
-        await deleteDoc(reminderDocRef);
+        await deleteDoc(doc(db, "users", auth.currentUser.uid, "reminders", reminderToDelete.id));
         showNotification('Recordatorio eliminado.', 'success');
         setReminderToDelete(null);
     }
@@ -326,6 +402,35 @@ export default function SettingsScreen() {
             <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
             <TextInput style={[styles.input, styles.disabledInput, { backgroundColor: colors.background, color: colors.textSecondary }]} value={email} editable={false} />
           </View>
+        </View>
+
+        <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Cuentas</Text>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
+                {accounts.map(account => (
+                    <View key={account.id} style={[styles.accountItem, { borderBottomColor: colors.border }]}>
+                        <View style={[styles.accountColor, { backgroundColor: account.color || colors.primary }]} />
+                        <View style={styles.accountInfo}>
+                            <Text style={[styles.accountName, { color: colors.text }]}>{account.name}</Text>
+                            <Text style={[styles.accountBalance, { color: colors.textSecondary }]}>{formatCurrency(account.balance)}</Text>
+                        </View>
+                        <View style={styles.accountActions}>
+                            <TouchableOpacity onPress={() => { setEditingAccount(account); setAccountModalVisible(true); }} style={{ padding: 5 }}>
+                                <EditIcon color={colors.textSecondary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={{ padding: 5, marginLeft: 10 }} onPress={() => setAccountToDelete(account)}>
+                                <DeleteIcon color={colors.destructive} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ))}
+                <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: colors.primary, marginTop: accounts.length > 0 ? 20 : 0 }]} 
+                    onPress={() => { setEditingAccount(null); setAccountModalVisible(true); }}
+                >
+                    <Text style={styles.buttonText}>Añadir Cuenta</Text>
+                </TouchableOpacity>
+            </View>
         </View>
 
         <View style={styles.section}>
@@ -397,7 +502,25 @@ export default function SettingsScreen() {
               {isSaving ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Guardar Cambios</Text>}
           </TouchableOpacity>
       </Animated.View>
-
+      
+      {/* --- MODALES --- */}
+      <ModalGestionarCuenta
+          visible={isAccountModalVisible}
+          onClose={() => { setAccountModalVisible(false); setEditingAccount(null); }}
+          onSave={handleSaveAccount}
+          existingAccount={editingAccount}
+          isSaving={isSaving}
+          showNotification={showNotification}
+      />
+      <ModalConfirmacion
+          visible={!!accountToDelete}
+          onCancel={() => setAccountToDelete(null)}
+          onConfirm={executeDeleteAccount}
+          title="Eliminar Cuenta"
+          message={`¿Estás seguro? Se eliminarán TODAS las transacciones asociadas a "${accountToDelete?.name}". Esta acción no se puede deshacer.`}
+          confirmText="Eliminar"
+          isConfirming={isSaving}
+      />
       <ModalCambiarContrasena visible={isPasswordModalVisible} onClose={() => setIsPasswordModalVisible(false)} onSuccess={() => { showNotification('Contraseña actualizada con éxito', 'success'); }}/>
       <ModalGestionarRecordatorio visible={isReminderModalVisible} onClose={() => { setIsReminderModalVisible(false); setEditingReminder(null); }} onSave={handleSaveReminder} existingReminder={editingReminder} categories={categories} />
       <ModalConfirmacion visible={!!reminderToDelete} onCancel={() => setReminderToDelete(null)} onConfirm={executeDeleteReminder} title="Eliminar Recordatorio" message={`¿Estás seguro de que quieres eliminar el recordatorio "${reminderToDelete?.name}"?`} confirmText="Eliminar" />
@@ -423,6 +546,14 @@ const styles = StyleSheet.create({
   buttonText: { color: 'white', fontWeight: 'bold', fontSize: 16, },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 50, },
   rowLabel: { fontSize: 16, },
+  // Estilos para cuentas
+  accountItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, },
+  accountColor: { width: 12, height: 12, borderRadius: 6, marginRight: 15, },
+  accountInfo: { flex: 1 },
+  accountName: { fontSize: 16, fontWeight: '600' },
+  accountBalance: { fontSize: 14, marginTop: 2 },
+  accountActions: { flexDirection: 'row', alignItems: 'center' },
+  // Estilos para recordatorios
   reminderWrapper: { borderBottomWidth: 1, },
   reminderItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, },
   reminderName: { fontSize: 16, fontWeight: '500' },
