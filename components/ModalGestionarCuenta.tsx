@@ -5,6 +5,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -41,6 +42,8 @@ const ModalGestionarCuenta: React.FC<Props> = ({ visible, onClose, onSave, exist
   const [initialBalance, setInitialBalance] = useState('');
   const [type, setType] = useState<'Efectivo' | 'Tarjeta' | 'Ahorros'>('Efectivo');
   const [color, setColor] = useState(ACCOUNT_COLORS[0]);
+  const [isSavingsGoalEnabled, setIsSavingsGoalEnabled] = useState(false);
+  const [savingsGoal, setSavingsGoal] = useState('');
 
   useEffect(() => {
     if (visible) {
@@ -49,12 +52,16 @@ const ModalGestionarCuenta: React.FC<Props> = ({ visible, onClose, onSave, exist
         setInitialBalance(formatNumber(String(existingAccount.balance)));
         setType(existingAccount.type || 'Efectivo');
         setColor(existingAccount.color || ACCOUNT_COLORS[0]);
+        setIsSavingsGoalEnabled(existingAccount.isSavingsGoalEnabled || false);
+        setSavingsGoal(formatNumber(String(existingAccount.savingsGoal || '')));
       } else {
         // Reset form for a new account
         setName('');
         setInitialBalance('');
         setType('Efectivo');
         setColor(ACCOUNT_COLORS[0]);
+        setIsSavingsGoalEnabled(false);
+        setSavingsGoal('');
       }
     }
   }, [existingAccount, visible]);
@@ -62,6 +69,7 @@ const ModalGestionarCuenta: React.FC<Props> = ({ visible, onClose, onSave, exist
   const handleSave = () => {
     Keyboard.dismiss();
     const balanceValue = parseFloat(parseFormattedNumber(initialBalance));
+    const savingsGoalValue = parseFloat(parseFormattedNumber(savingsGoal));
 
     if (!name.trim()) {
       showNotification('Por favor, ingresa un nombre para la cuenta.');
@@ -71,11 +79,17 @@ const ModalGestionarCuenta: React.FC<Props> = ({ visible, onClose, onSave, exist
       showNotification('Por favor, ingresa un saldo válido.');
       return;
     }
+    if (isSavingsGoalEnabled && (isNaN(savingsGoalValue) || savingsGoalValue <= 0)) {
+        showNotification('La meta de ahorro debe ser un número mayor a cero.');
+        return;
+    }
 
     const accountData = {
       name: name.trim(),
       type,
       color,
+      isSavingsGoalEnabled,
+      savingsGoal: isSavingsGoalEnabled ? savingsGoalValue : 0,
     };
 
     if (existingAccount) {
@@ -142,6 +156,22 @@ const ModalGestionarCuenta: React.FC<Props> = ({ visible, onClose, onSave, exist
                         />
                     ))}
                 </View>
+
+                {/* --- SECCIÓN DE META DE AHORRO --- */}
+                <View style={[styles.row, {marginBottom: 10}]}>
+                    <Text style={[styles.inputLabel, { color: colors.text, marginBottom: 0 }]}>Activar Meta de Ahorro</Text>
+                    <Switch trackColor={{ false: "#767577", true: colors.primary }} thumbColor={isSavingsGoalEnabled ? colors.primary : "#f4f3f4"} onValueChange={setIsSavingsGoalEnabled} value={isSavingsGoalEnabled}/>
+                </View>
+                {isSavingsGoalEnabled && (
+                    <TextInput 
+                        style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text }]} 
+                        value={savingsGoal} 
+                        onChangeText={(text) => setSavingsGoal(formatNumber(text))}
+                        placeholder="Meta de Ahorro Mensual"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="numeric"
+                    />
+                )}
             </ScrollView>
 
             <View style={styles.buttonContainer}>
@@ -224,6 +254,12 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         borderWidth: 3,
         margin: 6,
+    },
+    row: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
     },
     buttonContainer: {
         flexDirection: 'row',

@@ -441,7 +441,7 @@ export default function AppScreen() {
                   <AhorroMes 
                     monthlyIncome={monthlyIncome}
                     monthlyExpenses={monthlyExpenses}
-                    savingsGoal={userProfile?.savingsGoal || 0}
+                    savingsGoal={selectedAccount?.savingsGoal || 0}
                   />
 
                   <Historial 

@@ -2,8 +2,10 @@ export interface Account {
   id: string;
   name: string;
   balance: number;
-  color?: string; // <-- CAMPO AÑADIDO (opcional por ahora)
-  type?: 'Efectivo' | 'Tarjeta' | 'Ahorros'; // <-- CAMPO AÑADIDO (opcional por ahora)
+  color?: string;
+  type?: 'Efectivo' | 'Tarjeta' | 'Ahorros';
+  savingsGoal?: number; // <-- CAMPO AÑADIDO
+  isSavingsGoalEnabled?: boolean; // <-- CAMPO AÑADIDO
 }
 
 export type NewAccount = Omit<Account, 'id' | 'balance'> & {

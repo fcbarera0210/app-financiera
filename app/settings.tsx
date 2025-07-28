@@ -70,6 +70,7 @@ const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
 };
 
+
 // --- Sub-componente para cada recordatorio ---
 const ReminderItem = ({ reminder, isExpanded, onToggleExpand, onEdit, onDelete, onToggleCompletion }: any) => {
     const { colors } = useTheme();
@@ -138,12 +139,10 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, colors, toggleTheme } = useTheme();
   
-  // Estados de Perfil y Metas
+  // Estados de Perfil
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
-  const [savingsGoal, setSavingsGoal] = useState('');
-  const [isSavingsGoalEnabled, setIsSavingsGoalEnabled] = useState(false);
   const [initialData, setInitialData] = useState<any>(null);
   const [hasChanges, setHasChanges] = useState(false);
   
@@ -181,16 +180,12 @@ export default function SettingsScreen() {
             name: userData.name,
             lastName: userData.lastName,
             email: userData.email,
-            isSavingsGoalEnabled: userData.isSavingsGoalEnabled || false,
-            savingsGoal: String(userData.savingsGoal || ''),
             theme: theme,
           };
           setInitialData(data);
           setName(data.name);
           setLastName(data.lastName);
           setEmail(data.email);
-          setIsSavingsGoalEnabled(data.isSavingsGoalEnabled);
-          setSavingsGoal(formatNumber(data.savingsGoal));
         }
       });
 
@@ -219,17 +214,15 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (initialData) {
-      const currentData = { name, lastName, savingsGoal, isSavingsGoalEnabled, theme };
+      const currentData = { name, lastName, theme };
       const changed = JSON.stringify(currentData) !== JSON.stringify({
         name: initialData.name,
         lastName: initialData.lastName,
-        savingsGoal: formatNumber(initialData.savingsGoal),
-        isSavingsGoalEnabled: initialData.isSavingsGoalEnabled,
         theme: initialData.theme
       });
       setHasChanges(changed);
     }
-  }, [name, lastName, savingsGoal, isSavingsGoalEnabled, theme, initialData]);
+  }, [name, lastName, theme, initialData]);
 
   useEffect(() => {
     Animated.timing(buttonOpacity, { toValue: hasChanges ? 1 : 0, duration: 300, useNativeDriver: true }).start();
@@ -246,19 +239,12 @@ export default function SettingsScreen() {
       showNotification('El nombre y el apellido no pueden estar vacíos.', 'error');
       return;
     }
-    const numericGoal = parseFloat(parseFormattedNumber(savingsGoal));
-    if (isSavingsGoalEnabled && (isNaN(numericGoal) || numericGoal <= 0)) {
-        showNotification('La meta de ahorro debe ser un número mayor a cero.', 'error');
-        return;
-    }
     if (auth.currentUser) {
       setIsSaving(true);
       try {
         await updateDoc(doc(db, "users", auth.currentUser.uid), {
           name: name.trim(),
           lastName: lastName.trim(),
-          isSavingsGoalEnabled: isSavingsGoalEnabled,
-          savingsGoal: isSavingsGoalEnabled ? numericGoal : 0
         });
         await AsyncStorage.setItem('app-theme', theme);
         setHasChanges(false);
@@ -287,12 +273,8 @@ export default function SettingsScreen() {
             if (initialBalance > 0) {
                 const newTransactionRef = doc(collection(db, "users", auth.currentUser.uid, "transactions"));
                 batch.set(newTransactionRef, {
-                    accountId: newAccountRef.id,
-                    description: 'Saldo Inicial',
-                    amount: initialBalance,
-                    type: 'ingreso',
-                    category: null,
-                    date: new Date().toISOString(),
+                    accountId: newAccountRef.id, description: 'Saldo Inicial', amount: initialBalance,
+                    type: 'ingreso', category: null, date: new Date().toISOString(),
                 });
             }
             await batch.commit();
@@ -329,7 +311,6 @@ export default function SettingsScreen() {
         showNotification(`Cuenta "${accountToDelete.name}" y sus transacciones han sido eliminadas.`, 'success');
     } catch (error) {
         showNotification("Error al eliminar la cuenta.", "error");
-        console.error("Error deleting account and transactions: ", error);
     } finally {
         setIsSaving(false);
         setAccountToDelete(null);
@@ -451,26 +432,6 @@ export default function SettingsScreen() {
                     <Text style={styles.buttonText}>Añadir Recordatorio</Text>
                 </TouchableOpacity>
             </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Metas</Text>
-          <View style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.row}>
-                <Text style={[styles.rowLabel, { color: colors.text }]}>Activar Meta de Ahorro</Text>
-                <Switch trackColor={{ false: "#767577", true: colors.primary }} thumbColor={isSavingsGoalEnabled ? colors.primary : "#f4f3f4"} onValueChange={setIsSavingsGoalEnabled} value={isSavingsGoalEnabled}/>
-            </View>
-            {isSavingsGoalEnabled && (
-                <TextInput 
-                    style={[styles.input, { backgroundColor: colors.background, borderColor: colors.border, color: colors.text, marginTop: 20 }]} 
-                    value={savingsGoal} 
-                    onChangeText={(text) => setSavingsGoal(formatNumber(text))}
-                    placeholder="Meta de Ahorro Mensual"
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="numeric"
-                />
-            )}
-          </View>
         </View>
 
         <View style={styles.section}>
